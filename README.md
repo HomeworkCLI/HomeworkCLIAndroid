@@ -10,7 +10,7 @@ The application will use the mac address and model name of your phone to login.
 3. Click `Upload` button to upload the selected file.  
 4. Then the upload status will be shwon below the button.  
 ## Contact
-Visit <https://hack.chat/?homeworkcli> to contact with us.  
+Visit <https://crosst.chat/?homeworkcli> to contact with us.  
 ## Open-sourced
 The codes are bad and few exceptions are handled.  
 This just shows the vulnerability of yixuexiao and warns the consequences of not caring about code safety.  
