@@ -170,6 +170,7 @@ public class HomeworkUploadFragment extends Fragment {
                                 homeworkUploadViewModel.getText().postValue(tvs);
                                 Log.d("HomeworkUpload", "onResponse: got oss secret key");
                                 Log.d("HomeworkUpload", res);
+                                Log.d("HomeworkUpload", ossInfoModel.toString());
                                 return new OSSFederationToken(ossInfoModel.getAccessKeyId(),
                                         ossInfoModel.getAccessKeySecret(),
                                         ossInfoModel.getSecurityToken(),

@@ -35,7 +35,7 @@ import okhttp3.Request;
 public class HomeworkCLICore {
     private OkHttpClient httpClient = new OkHttpClient();
 
-    private String appVersion = "v3.8.8.3";
+    private String appVersion = "v3.8.9.4";
 
     private String baseUrl = UrlFactory.baseUrl;
     private String cycoreId = "";
@@ -150,7 +150,8 @@ public class HomeworkCLICore {
                         .add("pwd", encryptedPassword)
                         .add("device", "mobile")
                         .add("isforce", isforce ? "true" : "false")
-                        .add("usertype", String.valueOf(usertype)));
+                        .add("usertype", String.valueOf(usertype))
+                        .add("appVersion", this.appVersion));
     }
 
     public Call shareDoc(String userfor, String classids, String docid, String studentids) {
