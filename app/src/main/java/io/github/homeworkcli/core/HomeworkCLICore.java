@@ -11,6 +11,7 @@ import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Collections;
@@ -168,6 +169,27 @@ public class HomeworkCLICore {
                 new FormBody.Builder()
                         .add("docInfoJson", new Gson().toJson(docInfo))
                         .add("appVersion", this.appVersion));
+    }
+
+    public Call getOssSecretKeyNew() throws NoSuchAlgorithmException {
+        long timestamp = System.currentTimeMillis();
+        MessageDigest md5 = null;
+        md5 = MessageDigest.getInstance("MD5");
+        byte[] bytes = md5.digest((this.userid + "appId" + timestamp + "456FDB96EBB94035A926827139EA4216").getBytes());
+        StringBuilder result = new StringBuilder();
+        for (byte b : bytes) {
+            String temp = Integer.toHexString(b & 0xff);
+            if (temp.length() == 1) {
+                temp = "0" + temp;
+            }
+            result.append(temp);
+        }
+        return postNoEncrypt(UrlFactory.getOssSecretKeyNew,
+                new FormBody.Builder()
+                        .add("userId", this.userid)
+                        .add("timestamp", String.valueOf(timestamp))
+                        .add("appId", "appId")
+                        .add("sign", result.toString()));
     }
 
     private Call post(String url, FormBody.Builder data) {

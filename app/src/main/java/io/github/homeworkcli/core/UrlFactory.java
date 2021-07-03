@@ -376,4 +376,5 @@ public final class UrlFactory {
     public static final String userWrongBookInfo = baseUrl + "/jcservice/WrongBook/userWrongBookInfo";
     public static final String webShareMcvPicUrl = baseUrl + "/lesson/themes/default/img/video.png";
     public static final String wholeCountryExperialValueRank = baseUrl + "/jcservice/User/nationExpRank";
+    public static final String getOssSecretKeyNew = baseUrl + "jcservice/sts/getToken";
 }

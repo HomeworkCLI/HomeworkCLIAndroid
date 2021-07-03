@@ -1,7 +1,5 @@
 package io.github.homeworkcli.ui.homeworkupload;
 
-import android.app.Activity;
-import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -22,7 +20,9 @@ import com.alibaba.sdk.android.oss.OSS;
 import com.alibaba.sdk.android.oss.OSSClient;
 import com.alibaba.sdk.android.oss.ServiceException;
 import com.alibaba.sdk.android.oss.callback.OSSCompletedCallback;
-import com.alibaba.sdk.android.oss.common.auth.OSSPlainTextAKSKCredentialProvider;
+import com.alibaba.sdk.android.oss.common.auth.OSSCredentialProvider;
+import com.alibaba.sdk.android.oss.common.auth.OSSFederationCredentialProvider;
+import com.alibaba.sdk.android.oss.common.auth.OSSFederationToken;
 import com.alibaba.sdk.android.oss.model.PutObjectRequest;
 import com.alibaba.sdk.android.oss.model.PutObjectResult;
 import com.google.gson.Gson;
@@ -32,32 +32,26 @@ import org.jetbrains.annotations.NotNull;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
 import java.text.NumberFormat;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 import io.github.homeworkcli.FileUtil;
-import io.github.homeworkcli.MainActivity;
 import io.github.homeworkcli.core.HomeworkCLICore;
 import io.github.homeworkcli.databinding.FragmentHomeworkuploadBinding;
 import io.github.homeworkcli.models.BaseModel;
+import io.github.homeworkcli.models.OssInfoModel;
 import io.github.homeworkcli.models.clientLoginModel;
+import io.github.homeworkcli.models.getOssSecretKeyNewModel;
 import io.github.homeworkcli.models.saveDocNewModel;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 
 public class HomeworkUploadFragment extends Fragment {
-    private Context context;
-
     private HomeworkUploadViewModel homeworkUploadViewModel;
     private FragmentHomeworkuploadBinding binding;
 
@@ -69,10 +63,7 @@ public class HomeworkUploadFragment extends Fragment {
                              ViewGroup container, Bundle savedInstanceState) {
         homeworkUploadViewModel =
                 new ViewModelProvider(this).get(HomeworkUploadViewModel.class);
-        ossClient = new OSSClient(container.getContext(),
-                "http://oss-cn-hangzhou.aliyuncs.com",
-                new OSSPlainTextAKSKCredentialProvider("LTAI4G8HWjQYmcTk735N1zxu",
-                        "WnoFodPmNvhT1wjnh73CiMf3QTaNnB"));
+
         binding = FragmentHomeworkuploadBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
@@ -164,6 +155,38 @@ public class HomeworkUploadFragment extends Fragment {
                 docInfo.setIsschool(false);
                 docInfo.setCreator(homeworkCLICore.getUserid());
 
+                OSSCredentialProvider ossCredentialProvider = new OSSFederationCredentialProvider() {
+                    @Override
+                    public OSSFederationToken getFederationToken() throws ClientException {
+                        OssInfoModel ossInfoModel = new OssInfoModel();
+                            try {
+                                Call getOssSecretKeyNew = homeworkCLICore.getOssSecretKeyNew();
+                                Response response = getOssSecretKeyNew.execute();
+                                String res = response.body().string();
+                                getOssSecretKeyNewModel getOssSecretKeyNewResult = new Gson().fromJson(res, getOssSecretKeyNewModel.class);
+                                ossInfoModel = new Gson().fromJson(rc4Decrypt(getOssSecretKeyNewResult.getData()), OssInfoModel.class);
+                                List<String> tvs = homeworkUploadViewModel.getText().getValue();
+                                tvs.set(1, getOssSecretKeyNewResult.isSuccess() ? "Successfully get oss secret key" : "Error getting oss secret key with message: " + getOssSecretKeyNewResult.getMsg());
+                                homeworkUploadViewModel.getText().postValue(tvs);
+                                Log.d("HomeworkUpload", "onResponse: got oss secret key");
+                                Log.d("HomeworkUpload", res);
+                                return new OSSFederationToken(ossInfoModel.getAccessKeyId(),
+                                        ossInfoModel.getAccessKeySecret(),
+                                        ossInfoModel.getSecurityToken(),
+                                        ossInfoModel.getExpiration());
+                            } catch (NoSuchAlgorithmException|IOException e) {
+                                e.printStackTrace();
+                                List<String> tvs = homeworkUploadViewModel.getText().getValue();
+                                tvs.set(1, "Error getting oss secret key: " + e.getMessage());
+                            }
+                        return null;
+                    }
+                };
+
+                ossClient = new OSSClient(container.getContext(),
+                        "http://oss-cn-hangzhou.aliyuncs.com",
+                        ossCredentialProvider);
+
                 ossClient.asyncPutObject(put,
                         new OSSCompletedCallback<PutObjectRequest, PutObjectResult>() {
                             @Override
@@ -237,5 +260,48 @@ public class HomeworkUploadFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+
+    private String rc4Decrypt(String input) {
+        // #region rc4 decrypt
+        int size = input.length();
+        byte[] ret = new byte[(size / 2)];
+        byte[] tmp = input.getBytes();
+        for (int i = 0; i < size / 2; i++) {
+            char b0 = (char) (((char) Byte.decode("0x" + new String(new byte[]{tmp[i * 2]})).byteValue()) << 4);
+            ret[i] = (byte) (b0 ^ ((char) Byte.decode("0x" + new String(new byte[]{tmp[(i * 2) + 1]})).byteValue()));
+        }
+
+        byte[] bkey = "FD4DB9C94A694B87A34DDC563B36010E".getBytes();
+        byte[] state = new byte[256];
+        for (int i = 0; i < 256; i++) {
+            state[i] = (byte) i;
+        }
+        int index1 = 0;
+        int index2 = 0;
+        if (bkey == null || bkey.length == 0) {
+            state = null;
+        }
+        for (int i2 = 0; i2 < 256; i2++) {
+            index2 = ((bkey[index1] & 255) + (state[i2] & 255) + index2) & 255;
+            byte tmp2 = state[i2];
+            state[i2] = state[index2];
+            state[index2] = tmp2;
+            index1 = (index1 + 1) % bkey.length;
+        }
+
+        int x = 0;
+        int y = 0;
+        byte[] key = state;
+        byte[] result = new byte[ret.length];
+        for (int i = 0; i < ret.length; i++) {
+            x = (x + 1) & 255;
+            y = ((key[x] & 255) + y) & 255;
+            byte tmp3 = key[x];
+            key[x] = key[y];
+            key[y] = tmp3;
+            result[i] = (byte) (ret[i] ^ key[((key[x] & 255) + (key[y] & 255)) & 255]);
+        }
+        return new String(result);
     }
 }
